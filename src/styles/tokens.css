@@ -1,0 +1,49 @@
+:root {
+  /* Surfaces — deep, near-black with a faint cool cast */
+  --color-bg: oklch(15% 0.012 260);
+  --color-surface: oklch(19% 0.014 262);
+  --color-surface-2: oklch(23% 0.016 264);
+  --color-border: oklch(33% 0.02 264);
+  --color-border-strong: oklch(45% 0.03 264);
+
+  /* Text */
+  --color-text: oklch(95% 0.005 260);
+  --color-text-dim: oklch(72% 0.012 262);
+  --color-text-faint: oklch(56% 0.014 262);
+
+  /* Accents — electron blue primary, violet secondary, signal amber */
+  --color-accent: oklch(70% 0.17 248);
+  --color-accent-bright: oklch(80% 0.16 246);
+  --color-violet: oklch(68% 0.19 300);
+  --color-amber: oklch(82% 0.16 78);
+  --color-positive: oklch(78% 0.16 155);
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.85rem;
+  --text-base: clamp(0.95rem, 0.9rem + 0.2vw, 1.05rem);
+  --text-lg: 1.25rem;
+  --text-xl: clamp(1.6rem, 1.2rem + 1.4vw, 2.4rem);
+  --text-hero: clamp(2.2rem, 1.4rem + 3vw, 3.8rem);
+
+  /* Spacing & shape */
+  --space-1: 0.4rem;
+  --space-2: 0.75rem;
+  --space-3: 1.15rem;
+  --space-4: 1.75rem;
+  --space-5: 2.75rem;
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 22px;
+
+  /* Motion */
+  --duration-fast: 140ms;
+  --duration-normal: 320ms;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Glow */
+  --glow-accent: 0 0 0 1px oklch(70% 0.17 248 / 0.4), 0 0 24px oklch(70% 0.17 248 / 0.35);
+}
