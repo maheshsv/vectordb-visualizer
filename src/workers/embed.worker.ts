@@ -66,7 +66,9 @@ async function embed(id: string, text: string): Promise<void> {
   }
   try {
     const tokens = tokenize(text);
-    const output = await extractor(text, { pooling: 'mean', normalize: true });
+    // Store the raw mean-pooled vector (no normalization) so the UI can toggle
+    // normalization on/off and reveal how cosine vs dot product diverge.
+    const output = await extractor(text, { pooling: 'mean', normalize: false });
     const vector = Array.from(output.data as Float32Array);
     post({ type: 'embedded', id, text, vector, tokens });
   } catch (error) {

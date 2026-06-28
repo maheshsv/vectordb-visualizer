@@ -1,5 +1,11 @@
 import type { Metric } from '../types';
 
+/** Returns a unit-length copy of the vector (magnitude 1), or the input if it is the zero vector. */
+export function unit(a: number[]): number[] {
+  const mag = Math.sqrt(dot(a, a));
+  return mag === 0 ? a : a.map((x) => x / mag);
+}
+
 export function dot(a: number[], b: number[]): number {
   let sum = 0;
   for (let i = 0; i < a.length; i++) sum += a[i] * b[i];

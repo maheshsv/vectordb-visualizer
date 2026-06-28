@@ -4,11 +4,12 @@ import { formatScore } from '../lib/similarity';
 interface ResultsListProps {
   results: SearchResult[];
   metric: Metric;
+  topK: number;
   focusedId: string | null;
   onFocus: (id: string) => void;
 }
 
-export function ResultsList({ results, metric, focusedId, onFocus }: ResultsListProps) {
+export function ResultsList({ results, metric, topK, focusedId, onFocus }: ResultsListProps) {
   if (results.length === 0) {
     return <p className="results__empty">Run a search to rank the corpus by similarity.</p>;
   }
@@ -19,12 +20,15 @@ export function ResultsList({ results, metric, focusedId, onFocus }: ResultsList
     <ol className="results">
       {results.map((r, i) => {
         const fill = Math.max(0, Math.min(1, Math.abs(r.score) / best)) * 100;
+        const classes = [
+          'results__item',
+          focusedId === r.doc.id ? 'is-focused' : '',
+          i < topK ? 'is-top' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
         return (
-          <li
-            key={r.doc.id}
-            className={`results__item ${focusedId === r.doc.id ? 'is-focused' : ''}`}
-            onClick={() => onFocus(r.doc.id)}
-          >
+          <li key={r.doc.id} className={classes} onClick={() => onFocus(r.doc.id)}>
             <span className="results__rank mono">{i + 1}</span>
             <span className="results__text">{r.doc.text}</span>
             <span className="results__score mono">{formatScore(metric, r.score)}</span>
