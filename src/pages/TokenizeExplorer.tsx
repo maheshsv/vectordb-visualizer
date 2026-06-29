@@ -2,6 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ModelProgress, TokenInfo } from '../types';
 import { bpeTokenize } from '../lib/bpe';
 import { claudeLegacyTokenize } from '../lib/claudeLegacy';
+import {
+  CLAUDE_MODELS,
+  countClaudeTokens,
+  describeCountError,
+  type ClaudeModelId,
+} from '../lib/claudeCount';
 
 interface TokenizeExplorerProps {
   progress: ModelProgress;
@@ -67,6 +73,29 @@ export function TokenizeExplorer({ progress, tokenize }: TokenizeExplorerProps) 
   const wpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const claudeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Accurate count via the Token Counting API (latest Claude models).
+  const [apiKey, setApiKey] = useState('');
+  const [countModel, setCountModel] = useState<ClaudeModelId>('claude-opus-4-8');
+  const [accurate, setAccurate] = useState<{ model: string; tokens: number } | null>(null);
+  const [counting, setCounting] = useState(false);
+  const [countErr, setCountErr] = useState<string | null>(null);
+
+  const runCount = async () => {
+    if (!apiKey.trim() || !text.trim()) return;
+    setCounting(true);
+    setCountErr(null);
+    try {
+      const tokens = await countClaudeTokens(text, countModel, apiKey.trim());
+      const label = CLAUDE_MODELS.find((m) => m.id === countModel)?.label ?? countModel;
+      setAccurate({ model: label, tokens });
+    } catch (error) {
+      setAccurate(null);
+      setCountErr(describeCountError(error));
+    } finally {
+      setCounting(false);
+    }
+  };
+
   const ready = progress.status === 'ready';
 
   // WordPiece runs in the model worker (debounced).
@@ -82,6 +111,12 @@ export function TokenizeExplorer({ progress, tokenize }: TokenizeExplorerProps) 
       if (wpTimer.current) clearTimeout(wpTimer.current);
     };
   }, [text, ready, tokenize]);
+
+  // The accurate count is for the current text — invalidate it when text changes.
+  useEffect(() => {
+    setAccurate(null);
+    setCountErr(null);
+  }, [text]);
 
   // BPE runs synchronously in the main thread.
   const bpeTokens = useMemo(() => (text.trim() ? bpeTokenize(text) : null), [text]);
@@ -199,12 +234,69 @@ export function TokenizeExplorer({ progress, tokenize }: TokenizeExplorerProps) 
       </section>
 
       {algo === 'claude' && (
-        <p className="tok__warn" role="note">
-          ⚠️ This is Anthropic&rsquo;s <strong>legacy</strong> tokenizer (Claude 1 / 2). Modern Claude
-          (3 / 4) uses a different, <strong>unpublished</strong> tokenizer — there is no client-side
-          tokenizer for current models. Accurate counts require the{' '}
-          <code>count_tokens</code> API. Treat these as an approximation for comparison only.
-        </p>
+        <>
+          <p className="tok__warn" role="note">
+            ⚠️ The chips below are Anthropic&rsquo;s <strong>legacy</strong> tokenizer (Claude 1 / 2).
+            Modern Claude (3 / 4 / Fable) uses a different, <strong>unpublished</strong> tokenizer —
+            there is no client-side tokenizer for current models. For an <strong>accurate</strong>{' '}
+            count of the latest models, use the official API below.
+          </p>
+
+          <section className="apicount" aria-label="Accurate count via Token Counting API">
+            <h3 className="apicount__title">
+              Accurate count · latest Claude <span className="apicount__tag">count_tokens API</span>
+            </h3>
+            <div className="apicount__row">
+              <select
+                className="apicount__select"
+                value={countModel}
+                onChange={(e) => setCountModel(e.target.value as ClaudeModelId)}
+                aria-label="Claude model"
+              >
+                {CLAUDE_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="apicount__key"
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-ant-… (your Anthropic API key)"
+                aria-label="Anthropic API key"
+                autoComplete="off"
+              />
+              <button
+                className="btn btn--accent"
+                onClick={runCount}
+                disabled={counting || !apiKey.trim() || !text.trim()}
+              >
+                {counting ? 'Counting…' : 'Count'}
+              </button>
+            </div>
+
+            {accurate && (
+              <p className="apicount__result">
+                <b className="mono">{accurate.tokens}</b> tokens · {accurate.model}
+                {claudeTokens && (
+                  <span className="apicount__delta">
+                    {' '}
+                    (legacy approximation: <span className="mono">{claudeTokens.ids.length}</span>)
+                  </span>
+                )}
+              </p>
+            )}
+            {countErr && <p className="apicount__err">{countErr}</p>}
+
+            <p className="apicount__note">
+              🔒 Your key is sent <strong>directly to Anthropic from your browser</strong> and is
+              never stored or transmitted anywhere else. Browser use exposes the key to the page —
+              prefer a scoped or temporary key. The API returns a count only, not token pieces.
+            </p>
+          </section>
+        </>
       )}
 
       <section className="tok__stats" aria-label="Token statistics">
