@@ -1,8 +1,14 @@
+import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { useEmbedder } from './hooks/useEmbedder';
 import { Header } from './components/Header';
 import { Visualizer } from './pages/Visualizer';
-import { TokenizeExplorer } from './pages/TokenizeExplorer';
+
+// Code-split the tokenize page so its BPE vocabulary (cl100k_base, ~450 KB)
+// only downloads when the route is visited.
+const TokenizeExplorer = lazy(() =>
+  import('./pages/TokenizeExplorer').then((m) => ({ default: m.TokenizeExplorer })),
+);
 
 export default function App() {
   // One shared worker / model download for the whole app.
@@ -11,10 +17,15 @@ export default function App() {
   return (
     <div className="shell">
       <Header progress={progress} />
-      <Routes>
-        <Route path="/" element={<Visualizer progress={progress} embed={embed} />} />
-        <Route path="/tokenize" element={<TokenizeExplorer progress={progress} tokenize={tokenize} />} />
-      </Routes>
+      <Suspense fallback={<p className="route-loading">Loading…</p>}>
+        <Routes>
+          <Route path="/" element={<Visualizer progress={progress} embed={embed} />} />
+          <Route
+            path="/tokenize"
+            element={<TokenizeExplorer progress={progress} tokenize={tokenize} />}
+          />
+        </Routes>
+      </Suspense>
     </div>
   );
 }
