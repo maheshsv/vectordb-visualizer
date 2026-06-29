@@ -1,5 +1,7 @@
 # VectorDB Visualizer
 
+**🔗 Live demo: [preeminent-faun-2e7acc.netlify.app](https://preeminent-faun-2e7acc.netlify.app/)**
+
 An interactive, in-browser visualizer for how a vector database actually works:
 **text → tokens → embedding → similarity search → ranked results**, with a live 2D
 projection of the vector space.

@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Interactive visualizer for how vector databases tokenize, embed, and search text.",
+  "homepage": "https://preeminent-faun-2e7acc.netlify.app/",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
