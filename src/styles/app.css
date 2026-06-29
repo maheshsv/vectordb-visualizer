@@ -767,6 +767,7 @@
 }
 .seg {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
   padding: 0.25rem;
   background: var(--color-surface);
@@ -870,6 +871,14 @@
   background: oklch(70% 0.17 248 / 0.14);
   padding: 0.15rem 0.45rem;
   border-radius: 5px;
+}
+.apicount__lead {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-dim);
+}
+.apicount__lead strong {
+  color: var(--color-positive);
 }
 .apicount__row {
   display: flex;
