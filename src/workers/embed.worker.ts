@@ -76,8 +76,21 @@ async function embed(id: string, text: string): Promise<void> {
   }
 }
 
+function tokenizeOnly(id: string, text: string): void {
+  if (!extractor) {
+    post({ type: 'error', message: 'Model not ready' });
+    return;
+  }
+  try {
+    post({ type: 'tokenized', id, text, tokens: tokenize(text) });
+  } catch (error) {
+    post({ type: 'error', message: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
   if (request.type === 'init') void init();
   else if (request.type === 'embed') void embed(request.id, request.text);
+  else if (request.type === 'tokenize') tokenizeOnly(request.id, request.text);
 };

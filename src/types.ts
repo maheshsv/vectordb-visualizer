@@ -35,11 +35,13 @@ export interface ModelProgress {
 /** Messages sent from the main thread into the embedding worker. */
 export type WorkerRequest =
   | { type: 'init' }
-  | { type: 'embed'; id: string; text: string };
+  | { type: 'embed'; id: string; text: string }
+  | { type: 'tokenize'; id: string; text: string };
 
 /** Messages posted back from the embedding worker. */
 export type WorkerResponse =
   | { type: 'progress'; percent: number; message: string }
   | { type: 'ready' }
   | { type: 'error'; message: string }
-  | { type: 'embedded'; id: string; text: string; vector: number[]; tokens: TokenInfo };
+  | { type: 'embedded'; id: string; text: string; vector: number[]; tokens: TokenInfo }
+  | { type: 'tokenized'; id: string; text: string; tokens: TokenInfo };

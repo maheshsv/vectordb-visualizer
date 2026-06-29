@@ -1,8 +1,8 @@
+import { NavLink } from 'react-router-dom';
 import type { ModelProgress } from '../types';
 
 interface HeaderProps {
   progress: ModelProgress;
-  docCount: number;
 }
 
 const STATUS_LABEL: Record<ModelProgress['status'], string> = {
@@ -12,7 +12,7 @@ const STATUS_LABEL: Record<ModelProgress['status'], string> = {
   error: 'Model error',
 };
 
-export function Header({ progress, docCount }: HeaderProps) {
+export function Header({ progress }: HeaderProps) {
   return (
     <header className="masthead">
       <div className="masthead__brand">
@@ -26,25 +26,33 @@ export function Header({ progress, docCount }: HeaderProps) {
         </div>
       </div>
 
-      <div className="masthead__status" role="status" aria-live="polite">
-        <span className={`statuspill statuspill--${progress.status}`}>
-          <span className="statuspill__dot" aria-hidden="true" />
-          {STATUS_LABEL[progress.status]}
-        </span>
-        {progress.status === 'loading' && (
-          <div className="statusbar" aria-hidden="true">
-            <div className="statusbar__fill" style={{ width: `${progress.percent}%` }} />
-          </div>
-        )}
-        {progress.status === 'ready' && (
-          <span className="masthead__count mono">{docCount} vectors indexed</span>
-        )}
-        {progress.status === 'loading' && (
-          <span className="masthead__count mono">{progress.message}</span>
-        )}
-        {progress.status === 'error' && (
-          <span className="masthead__count masthead__count--error">{progress.message}</span>
-        )}
+      <div className="masthead__right">
+        <nav className="navtabs" aria-label="Primary">
+          <NavLink to="/" end className="navtab">
+            Search
+          </NavLink>
+          <NavLink to="/tokenize" className="navtab">
+            Tokenize
+          </NavLink>
+        </nav>
+
+        <div className="masthead__status" role="status" aria-live="polite">
+          <span className={`statuspill statuspill--${progress.status}`}>
+            <span className="statuspill__dot" aria-hidden="true" />
+            {STATUS_LABEL[progress.status]}
+          </span>
+          {progress.status === 'loading' && (
+            <div className="statusbar" aria-hidden="true">
+              <div className="statusbar__fill" style={{ width: `${progress.percent}%` }} />
+            </div>
+          )}
+          {progress.status === 'loading' && (
+            <span className="masthead__count mono">{progress.message}</span>
+          )}
+          {progress.status === 'error' && (
+            <span className="masthead__count masthead__count--error">{progress.message}</span>
+          )}
+        </div>
       </div>
     </header>
   );

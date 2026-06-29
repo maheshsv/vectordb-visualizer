@@ -6,7 +6,7 @@ export interface EmbedResult {
   tokens: TokenInfo;
 }
 
-type Pending = (result: EmbedResult) => void;
+type Pending = (result: EmbedResult | TokenInfo) => void;
 
 let idCounter = 0;
 function nextId(): string {
@@ -15,8 +15,9 @@ function nextId(): string {
 }
 
 /**
- * Owns the embedding worker, tracks model load progress, and turns the
- * worker's message protocol into a simple `embed(text) => Promise` API.
+ * Owns the embedding worker, tracks model load progress, and exposes
+ * `embed(text)` and `tokenize(text)` as promise-based calls. A single worker
+ * (one model download) is shared across the whole app.
  */
 export function useEmbedder() {
   const workerRef = useRef<Worker | null>(null);
@@ -53,6 +54,14 @@ export function useEmbedder() {
           }
           break;
         }
+        case 'tokenized': {
+          const resolve = pendingRef.current.get(msg.id);
+          if (resolve) {
+            pendingRef.current.delete(msg.id);
+            resolve(msg.tokens);
+          }
+          break;
+        }
       }
     };
 
@@ -60,15 +69,18 @@ export function useEmbedder() {
     return () => worker.terminate();
   }, []);
 
-  const embed = useCallback((text: string): Promise<EmbedResult> => {
+  const request = useCallback(<T>(type: 'embed' | 'tokenize', text: string): Promise<T> => {
     const worker = workerRef.current;
     if (!worker) return Promise.reject(new Error('Worker not initialized'));
     const id = nextId();
-    return new Promise<EmbedResult>((resolve) => {
-      pendingRef.current.set(id, resolve);
-      worker.postMessage({ type: 'embed', id, text });
+    return new Promise<T>((resolve) => {
+      pendingRef.current.set(id, resolve as Pending);
+      worker.postMessage({ type, id, text });
     });
   }, []);
 
-  return { progress, embed };
+  const embed = useCallback((text: string) => request<EmbedResult>('embed', text), [request]);
+  const tokenize = useCallback((text: string) => request<TokenInfo>('tokenize', text), [request]);
+
+  return { progress, embed, tokenize };
 }
