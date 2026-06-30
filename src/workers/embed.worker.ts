@@ -108,7 +108,10 @@ async function tokenEmbed(id: string, text: string): Promise<void> {
     const pieces = extractor.tokenizer.tokenize(text);
     const labels = ['[CLS]', ...pieces, '[SEP]'].slice(0, seq);
     while (labels.length < seq) labels.push('?');
-    post({ type: 'token-embedded', id, text, embeddings: { labels, matrix } });
+    // Encode includes the [CLS]/[SEP] special-token ids, aligned to labels.
+    const ids = (extractor.tokenizer.encode(text) as number[]).slice(0, seq);
+    while (ids.length < seq) ids.push(-1);
+    post({ type: 'token-embedded', id, text, embeddings: { labels, ids, matrix } });
   } catch (error) {
     post({ type: 'error', message: error instanceof Error ? error.message : String(error) });
   }

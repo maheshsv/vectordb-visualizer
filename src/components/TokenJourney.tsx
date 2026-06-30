@@ -27,6 +27,7 @@ function cellColor(value: number, scale: number): string {
 interface Stage {
   key: string;
   title: string;
+  form: string;
   detail: string;
   vec: number[] | null;
 }
@@ -39,8 +40,9 @@ export function TokenJourney({ embeddings, loading }: TokenJourneyProps) {
   const [stage, setStage] = useState(0);
   const [playing, setPlaying] = useState(!prefersReducedMotion());
 
+  // Default to the first real token (after [CLS]) when a new sentence loads.
   useEffect(() => {
-    setToken((t) => (n > 0 ? Math.min(t, n - 1) : 0));
+    setToken(n > 1 ? 1 : 0);
     setStage(0);
   }, [embeddings, n]);
 
@@ -49,6 +51,8 @@ export function TokenJourney({ embeddings, loading }: TokenJourneyProps) {
     const matrix = embeddings.matrix;
     const dim = matrix[0].length;
     const i = Math.min(token, n - 1);
+    const txt = embeddings.labels[i].replace(/^##/, '');
+    const tid = embeddings.ids[i];
 
     const v0 = matrix[i];
     const pe = positionalEncoding(i, dim);
@@ -64,12 +68,12 @@ export function TokenJourney({ embeddings, loading }: TokenJourneyProps) {
       .slice(0, 3);
 
     const built: Stage[] = [
-      { key: 'input', title: '1 · Input token', detail: 'The token is one entry in the vocabulary — a discrete integer id. No vector yet.', vec: null },
-      { key: 'embed', title: '2 · Token embedding', detail: 'The id is looked up in an embedding table and becomes a learned vector. (Shown: the model’s 384-dim vector for this token.)', vec: v0 },
-      { key: 'pos', title: '3 · + Positional encoding', detail: 'A position-dependent sinusoidal pattern is added so the model knows where this token sits in the sequence.', vec: v1 },
-      { key: 'attn', title: '4 · Self-attention', detail: 'The token becomes a weighted blend of every token’s vector — it “reads” the context. Its biggest sources are shown below.', vec: v2 },
-      { key: 'ffn', title: '5 · Feed-forward (MLP)', detail: 'A small per-token network with a nonlinearity (GELU) reshapes the vector independently of the others.', vec: v3 },
-      { key: 'out', title: '6 · Add & Norm → ×N layers', detail: 'A residual + layer-norm wraps each step, and the whole block repeats N times. The final vector is this token’s contextual meaning.', vec: v3 },
+      { key: 'input', title: '1 · Input token', form: `text “${txt}”  →  id ${tid}`, detail: `The text “${txt}” is matched in the ~30K-word vocabulary and replaced by its integer id ${tid}. That id is the model’s only handle on the word — everything after this is numbers.`, vec: null },
+      { key: 'embed', title: '2 · Token embedding', form: `id ${tid}  →  384-dim vector`, detail: `Id ${tid} indexes a lookup table and becomes a learned 384-dim vector. The text “${txt}” is gone now — from here the model works purely with these numbers.`, vec: v0 },
+      { key: 'pos', title: '3 · + Positional encoding', form: `vector + position ${i}`, detail: `A sinusoidal pattern for position ${i} is added, so the model knows “${txt}” is the token at slot ${i} — not just which word it is.`, vec: v1 },
+      { key: 'attn', title: '4 · Self-attention', form: 'vector ⊕ context', detail: `“${txt}” becomes a weighted blend of every token’s vector — it “reads” the sentence. Its biggest sources are shown below.`, vec: v2 },
+      { key: 'ffn', title: '5 · Feed-forward (MLP)', form: 'vector → vector', detail: 'A small per-token network with a nonlinearity (GELU) reshapes the vector independently of the others.', vec: v3 },
+      { key: 'out', title: '6 · Add & Norm → ×N layers', form: 'contextual vector', detail: `A residual + layer-norm wraps each step, and the block repeats N times. The result is the contextual meaning of “${txt}” — no longer a word, a point in 384-D space.`, vec: v3 },
     ];
     return { stages: built, contributors: contribs };
   }, [embeddings, weights, n, token]);
@@ -123,17 +127,23 @@ export function TokenJourney({ embeddings, loading }: TokenJourneyProps) {
       </div>
 
       <div className="journey__stage">
-        <div className="journey__token mono">{short(embeddings!.labels[Math.min(token, n - 1)])}</div>
+        <div className="journey__id">
+          <span className="journey__idtoken mono">{short(embeddings!.labels[Math.min(token, n - 1)])}</span>
+          <span className="journey__idnum mono">id {embeddings!.ids[Math.min(token, n - 1)]}</span>
+        </div>
 
-        {vec ? (
-          <div className="journey__strip" aria-label="Token vector (first 48 dimensions)">
-            {vec.slice(0, STRIP).map((value, k) => (
-              <span key={k} className="journey__cell" style={{ backgroundColor: cellColor(value, scale) }} />
-            ))}
-          </div>
-        ) : (
-          <div className="journey__discrete mono">id · no vector yet</div>
-        )}
+        <div className="journey__form">
+          {vec ? (
+            <div className="journey__strip" aria-label="Token vector (first 48 dimensions)">
+              {vec.slice(0, STRIP).map((value, k) => (
+                <span key={k} className="journey__cell" style={{ backgroundColor: cellColor(value, scale) }} />
+              ))}
+            </div>
+          ) : (
+            <div className="journey__discrete mono">{current.form}</div>
+          )}
+          <span className="journey__formcaption mono">{current.form}</span>
+        </div>
       </div>
 
       <p className="journey__detail">

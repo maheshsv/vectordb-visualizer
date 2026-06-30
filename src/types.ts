@@ -36,6 +36,8 @@ export interface ModelProgress {
 export interface TokenEmbeddings {
   /** Token labels including [CLS]/[SEP], aligned to matrix rows. */
   labels: string[];
+  /** Vocabulary integer ids, aligned to labels/matrix rows. */
+  ids: number[];
   /** seq × dim matrix of last-hidden-state vectors. */
   matrix: number[][];
 }
