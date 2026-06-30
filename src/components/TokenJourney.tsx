@@ -1,0 +1,160 @@
+import { useEffect, useMemo, useState } from 'react';
+import type { TokenEmbeddings } from '../types';
+import { selfAttention } from '../lib/attention';
+import { positionalEncoding, gelu } from '../lib/positional';
+
+interface TokenJourneyProps {
+  embeddings: TokenEmbeddings | null;
+  loading: boolean;
+}
+
+const STRIP = 48; // dims shown in the vector strip
+const STEP_MS = 2000;
+
+const prefersReducedMotion = () =>
+  typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const short = (label: string) =>
+  label.length > 10 ? label.replace(/^##/, '').slice(0, 9) + '…' : label.replace(/^##/, '');
+
+/** Color a vector value: blue = positive, violet = negative, brightness = magnitude. */
+function cellColor(value: number, scale: number): string {
+  const mag = Math.min(1, Math.abs(value) / (scale || 1));
+  const hue = value >= 0 ? 248 : 300;
+  return `oklch(${(28 + mag * 50).toFixed(1)}% ${(0.03 + mag * 0.17).toFixed(3)} ${hue})`;
+}
+
+interface Stage {
+  key: string;
+  title: string;
+  detail: string;
+  vec: number[] | null;
+}
+
+export function TokenJourney({ embeddings, loading }: TokenJourneyProps) {
+  const weights = useMemo(() => (embeddings ? selfAttention(embeddings.matrix) : []), [embeddings]);
+  const n = weights.length;
+
+  const [token, setToken] = useState(1); // default to first real token (after [CLS])
+  const [stage, setStage] = useState(0);
+  const [playing, setPlaying] = useState(!prefersReducedMotion());
+
+  useEffect(() => {
+    setToken((t) => (n > 0 ? Math.min(t, n - 1) : 0));
+    setStage(0);
+  }, [embeddings, n]);
+
+  const { stages, contributors } = useMemo(() => {
+    if (!embeddings || n === 0) return { stages: [] as Stage[], contributors: [] as Array<{ label: string; w: number }> };
+    const matrix = embeddings.matrix;
+    const dim = matrix[0].length;
+    const i = Math.min(token, n - 1);
+
+    const v0 = matrix[i];
+    const pe = positionalEncoding(i, dim);
+    const v1 = v0.map((x, k) => x + pe[k]);
+    const w = weights[i];
+    const v2 = new Array<number>(dim).fill(0);
+    for (let j = 0; j < n; j++) for (let k = 0; k < dim; k++) v2[k] += w[j] * matrix[j][k];
+    const v3 = v2.map(gelu);
+
+    const contribs = w
+      .map((weight, j) => ({ label: embeddings.labels[j], w: weight }))
+      .sort((a, b) => b.w - a.w)
+      .slice(0, 3);
+
+    const built: Stage[] = [
+      { key: 'input', title: '1 · Input token', detail: 'The token is one entry in the vocabulary — a discrete integer id. No vector yet.', vec: null },
+      { key: 'embed', title: '2 · Token embedding', detail: 'The id is looked up in an embedding table and becomes a learned vector. (Shown: the model’s 384-dim vector for this token.)', vec: v0 },
+      { key: 'pos', title: '3 · + Positional encoding', detail: 'A position-dependent sinusoidal pattern is added so the model knows where this token sits in the sequence.', vec: v1 },
+      { key: 'attn', title: '4 · Self-attention', detail: 'The token becomes a weighted blend of every token’s vector — it “reads” the context. Its biggest sources are shown below.', vec: v2 },
+      { key: 'ffn', title: '5 · Feed-forward (MLP)', detail: 'A small per-token network with a nonlinearity (GELU) reshapes the vector independently of the others.', vec: v3 },
+      { key: 'out', title: '6 · Add & Norm → ×N layers', detail: 'A residual + layer-norm wraps each step, and the whole block repeats N times. The final vector is this token’s contextual meaning.', vec: v3 },
+    ];
+    return { stages: built, contributors: contribs };
+  }, [embeddings, weights, n, token]);
+
+  useEffect(() => {
+    if (!playing || stages.length === 0) return;
+    const timer = setInterval(() => setStage((s) => (s + 1) % stages.length), STEP_MS);
+    return () => clearInterval(timer);
+  }, [playing, stages.length]);
+
+  if (loading) return <p className="tok__hint">Computing token embeddings…</p>;
+  if (n === 0) return <p className="tok__hint">Enter a sentence above to trace a token through the stack.</p>;
+
+  const current = stages[stage];
+  const vec = current.vec;
+  const scale = vec ? Math.max(...vec.map((x) => Math.abs(x)), 1e-6) : 1;
+
+  return (
+    <div className="journey">
+      <div className="journey__pick">
+        <span className="journey__picklabel">Trace this token:</span>
+        <div className="journey__tokens">
+          {embeddings!.labels.map((label, i) => (
+            <button
+              key={i}
+              className={`chip ${i === token ? 'is-active' : ''}`}
+              onClick={() => { setToken(i); setStage(0); }}
+            >
+              {short(label)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="journey__head">
+        <ol className="journey__steps">
+          {stages.map((s, i) => (
+            <li key={s.key}>
+              <button
+                className={`journey__step ${i === stage ? 'is-active' : ''} ${i < stage ? 'is-done' : ''}`}
+                onClick={() => { setStage(i); setPlaying(false); }}
+              >
+                {i + 1}
+              </button>
+            </li>
+          ))}
+        </ol>
+        <button className="chip" onClick={() => setPlaying((p) => !p)}>
+          {playing ? '❚❚ Pause' : '▶ Play'}
+        </button>
+      </div>
+
+      <div className="journey__stage">
+        <div className="journey__token mono">{short(embeddings!.labels[Math.min(token, n - 1)])}</div>
+
+        {vec ? (
+          <div className="journey__strip" aria-label="Token vector (first 48 dimensions)">
+            {vec.slice(0, STRIP).map((value, k) => (
+              <span key={k} className="journey__cell" style={{ backgroundColor: cellColor(value, scale) }} />
+            ))}
+          </div>
+        ) : (
+          <div className="journey__discrete mono">id · no vector yet</div>
+        )}
+      </div>
+
+      <p className="journey__detail">
+        <strong>{current.title}.</strong> {current.detail}
+      </p>
+
+      {current.key === 'attn' && (
+        <div className="journey__contrib">
+          <span className="journey__contriblabel">Reads most from:</span>
+          {contributors.map((c, i) => (
+            <span key={i} className="journey__chip mono">
+              {short(c.label)} <b>{c.w.toFixed(2)}</b>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <p className="journey__note">
+        Illustrative: real model internals between layers aren&rsquo;t exposed, so this traces the
+        <em> mechanism</em> using the model&rsquo;s real token vectors and real attention weights.
+      </p>
+    </div>
+  );
+}

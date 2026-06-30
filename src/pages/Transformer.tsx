@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ModelProgress, TokenEmbeddings } from '../types';
 import { ArchitectureFlow } from '../components/ArchitectureFlow';
 import { AttentionView } from '../components/AttentionView';
+import { TokenJourney } from '../components/TokenJourney';
 
 interface TransformerProps {
   progress: ModelProgress;
@@ -79,6 +80,13 @@ export function Transformer({ progress, tokenEmbed }: TransformerProps) {
           <AttentionView embeddings={embeddings} loading={loading && !embeddings} />
         </section>
       </div>
+
+      <section className="panel xf__journey" aria-labelledby="journey-heading">
+        <h3 id="journey-heading" className="panel__title">
+          Follow one token through the stack <span className="panel__hint">input → contextual vector</span>
+        </h3>
+        <TokenJourney embeddings={embeddings} loading={loading && !embeddings} />
+      </section>
     </main>
   );
 }
