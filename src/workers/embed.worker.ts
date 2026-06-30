@@ -88,9 +88,36 @@ function tokenizeOnly(id: string, text: string): void {
   }
 }
 
+// Returns the per-token last-hidden-state vectors (no pooling) for the
+// self-attention visualization, with labels aligned to each row.
+async function tokenEmbed(id: string, text: string): Promise<void> {
+  if (!extractor) {
+    post({ type: 'error', message: 'Model not ready' });
+    return;
+  }
+  try {
+    const output = await extractor(text, { pooling: 'none', normalize: false });
+    const [, seq, dim] = output.dims as number[];
+    const data = output.data as Float32Array;
+    const matrix: number[][] = [];
+    for (let i = 0; i < seq; i++) {
+      const row = new Array<number>(dim);
+      for (let k = 0; k < dim; k++) row[k] = data[i * dim + k];
+      matrix.push(row);
+    }
+    const pieces = extractor.tokenizer.tokenize(text);
+    const labels = ['[CLS]', ...pieces, '[SEP]'].slice(0, seq);
+    while (labels.length < seq) labels.push('?');
+    post({ type: 'token-embedded', id, text, embeddings: { labels, matrix } });
+  } catch (error) {
+    post({ type: 'error', message: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
   if (request.type === 'init') void init();
   else if (request.type === 'embed') void embed(request.id, request.text);
   else if (request.type === 'tokenize') tokenizeOnly(request.id, request.text);
+  else if (request.type === 'token-embed') void tokenEmbed(request.id, request.text);
 };

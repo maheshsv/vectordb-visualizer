@@ -34,6 +34,9 @@ export function Header({ progress }: HeaderProps) {
           <NavLink to="/tokenize" className="navtab">
             Tokenize
           </NavLink>
+          <NavLink to="/transformer" className="navtab">
+            Transformer
+          </NavLink>
         </nav>
 
         <div className="masthead__status" role="status" aria-live="polite">

@@ -32,11 +32,20 @@ export interface ModelProgress {
   percent: number;
 }
 
+/** Per-token contextual embeddings (sequence of vectors), with aligned labels. */
+export interface TokenEmbeddings {
+  /** Token labels including [CLS]/[SEP], aligned to matrix rows. */
+  labels: string[];
+  /** seq × dim matrix of last-hidden-state vectors. */
+  matrix: number[][];
+}
+
 /** Messages sent from the main thread into the embedding worker. */
 export type WorkerRequest =
   | { type: 'init' }
   | { type: 'embed'; id: string; text: string }
-  | { type: 'tokenize'; id: string; text: string };
+  | { type: 'tokenize'; id: string; text: string }
+  | { type: 'token-embed'; id: string; text: string };
 
 /** Messages posted back from the embedding worker. */
 export type WorkerResponse =
@@ -44,4 +53,5 @@ export type WorkerResponse =
   | { type: 'ready' }
   | { type: 'error'; message: string }
   | { type: 'embedded'; id: string; text: string; vector: number[]; tokens: TokenInfo }
-  | { type: 'tokenized'; id: string; text: string; tokens: TokenInfo };
+  | { type: 'tokenized'; id: string; text: string; tokens: TokenInfo }
+  | { type: 'token-embedded'; id: string; text: string; embeddings: TokenEmbeddings };

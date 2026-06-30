@@ -9,10 +9,13 @@ import { Visualizer } from './pages/Visualizer';
 const TokenizeExplorer = lazy(() =>
   import('./pages/TokenizeExplorer').then((m) => ({ default: m.TokenizeExplorer })),
 );
+const Transformer = lazy(() =>
+  import('./pages/Transformer').then((m) => ({ default: m.Transformer })),
+);
 
 export default function App() {
   // One shared worker / model download for the whole app.
-  const { progress, embed, tokenize } = useEmbedder();
+  const { progress, embed, tokenize, tokenEmbed } = useEmbedder();
 
   return (
     <div className="shell">
@@ -23,6 +26,10 @@ export default function App() {
           <Route
             path="/tokenize"
             element={<TokenizeExplorer progress={progress} tokenize={tokenize} />}
+          />
+          <Route
+            path="/transformer"
+            element={<Transformer progress={progress} tokenEmbed={tokenEmbed} />}
           />
         </Routes>
       </Suspense>

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ModelProgress, TokenInfo, WorkerResponse } from '../types';
+import type { ModelProgress, TokenEmbeddings, TokenInfo, WorkerResponse } from '../types';
 
 export interface EmbedResult {
   vector: number[];
   tokens: TokenInfo;
 }
 
-type Pending = (result: EmbedResult | TokenInfo) => void;
+type Pending = (result: EmbedResult | TokenInfo | TokenEmbeddings) => void;
 
 let idCounter = 0;
 function nextId(): string {
@@ -62,6 +62,14 @@ export function useEmbedder() {
           }
           break;
         }
+        case 'token-embedded': {
+          const resolve = pendingRef.current.get(msg.id);
+          if (resolve) {
+            pendingRef.current.delete(msg.id);
+            resolve(msg.embeddings);
+          }
+          break;
+        }
       }
     };
 
@@ -69,18 +77,25 @@ export function useEmbedder() {
     return () => worker.terminate();
   }, []);
 
-  const request = useCallback(<T>(type: 'embed' | 'tokenize', text: string): Promise<T> => {
-    const worker = workerRef.current;
-    if (!worker) return Promise.reject(new Error('Worker not initialized'));
-    const id = nextId();
-    return new Promise<T>((resolve) => {
-      pendingRef.current.set(id, resolve as Pending);
-      worker.postMessage({ type, id, text });
-    });
-  }, []);
+  const request = useCallback(
+    <T>(type: 'embed' | 'tokenize' | 'token-embed', text: string): Promise<T> => {
+      const worker = workerRef.current;
+      if (!worker) return Promise.reject(new Error('Worker not initialized'));
+      const id = nextId();
+      return new Promise<T>((resolve) => {
+        pendingRef.current.set(id, resolve as Pending);
+        worker.postMessage({ type, id, text });
+      });
+    },
+    [],
+  );
 
   const embed = useCallback((text: string) => request<EmbedResult>('embed', text), [request]);
   const tokenize = useCallback((text: string) => request<TokenInfo>('tokenize', text), [request]);
+  const tokenEmbed = useCallback(
+    (text: string) => request<TokenEmbeddings>('token-embed', text),
+    [request],
+  );
 
-  return { progress, embed, tokenize };
+  return { progress, embed, tokenize, tokenEmbed };
 }
